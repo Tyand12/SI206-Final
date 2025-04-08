@@ -5,6 +5,8 @@ import requests
 import sqlite3
 import time
 
+#Jolie
+
 API_KEY = 'meIGG1cfYGouCKivoLbDcUcmvardMj6p'
 CITY = 'ANn Arbor'
 DB_NAME = 'weather_traffic.db'
@@ -26,3 +28,14 @@ def create_weather_table():
     ''')
     conn.commit()
     conn.close()
+
+def get_location_key(city):
+    url = "http://dataservice.accuweather.com/locations/v1/cities/search"
+    params = {'apikey': API_KEY, 'q': city}
+    response = requests.get(url, params=params)
+    if response.status_code == 200 and response.json():
+        return response.json()[0]['Key']
+    else:
+        print(f"Failed to get locationKey for {city}")
+        return None
+    
