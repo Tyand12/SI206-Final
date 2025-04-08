@@ -54,7 +54,7 @@ def fetch_weather_data(location_key):
     response = requests.get(url, params=params)
 
     if response.status_code == 200:
-        data = response.json()[]
+        data = response.json()[0]
         return {
             'observation_time': data['LocalObservationDataTime'],
             'temperature': data['Temperature']['Metric']['Value'],
@@ -65,4 +65,50 @@ def fetch_weather_data(location_key):
         print("Error fetching weather data.")
         return None
     
+#store up to 20 new weather records w/o exceeding total of 100
+def store_weather_data(max_new=20, total_limit=100):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    #check how many AA rows we already have
+    cur.execute('SELECT COUNT(*) FROM Weather WHERE city = ?', (CITY,))
+    current_count = cur.fetchone()[0]
+
+    if current_count >= total_limit:
+        print("Limit of 100 rows already reached.")
+        conn.close()
+        return
     
+    #get location key only once
+    location_key = get_location_key(CITY)
+    if not location_key:
+        conn.close()
+        return
+    
+    rows_added = 0
+
+    while rows_added < max_new and current_count + rows_added < total_limit:
+        weather = fetch_weather_data(location_key)
+        if weather:
+            try:
+                #try to insert the new observation and ignore if dup
+                cur.execute('''
+                    INSERT OR IGNORE INTO Weather
+                    (city, location_key, observation_time, temperature, weather_text, is_daytime)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (
+                    CITY, location_key, weather['observation_time'], weather['temperature'],
+                    weather['weather_text'], weather['is_daytime']
+                ))
+                conn.commit()
+                rows_added += 1
+                print(f"Added row {current_count + rows_added}")
+                #from chat: wait 1 second to avoid hitting API limits
+                time.sleep(1) 
+            except:
+                print("Insert failed:")
+
+        else:
+            break
+        
+    conn.close()
