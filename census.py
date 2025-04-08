@@ -15,6 +15,7 @@ params = {
 
 # Make the API request
 response = requests.get(acs_base_url, params=params)
+print(response)
 
 # Check if response is valid
 if response.status_code == 200:
