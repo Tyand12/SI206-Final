@@ -7,7 +7,7 @@ acs_base_url = 'https://api.census.gov/data/2021/acs/acs5'
 
 # Parameters for the API request
 params = {
-    'get': 'B01003_001E,NAME,ALAND',
+    'get': 'B01003_001E,NAME',
     'for': 'tract:*',
     'in': 'state:26+county:161',
     'key': api_key
@@ -15,48 +15,33 @@ params = {
 
 # Make the API request
 response = requests.get(acs_base_url, params=params)
-print(response)
+print(response.url)
 
-# Check if response is valid
 if response.status_code == 200:
-    # Print the raw response for debugging
     print(response.text)
 
-    # Attempt to parse the JSON response
     try:
         data = response.json()
+        df = pd.DataFrame(data[1:], columns=data[0])
 
-        # Check if data is returned
-        if len(data) > 1:
-            # Convert the response data to DataFrame
-            df = pd.DataFrame(data[1:], columns=data[0])
+        df['B01003_001E'] = pd.to_numeric(df['B01003_001E'], errors='coerce')
+        df['ALAND'] = pd.to_numeric(df['ALAND'], errors='coerce')
+        df['density_km2'] = df['B01003_001E'] / (df['ALAND'] / 1_000_000)
 
-            # Step 4: Clean up and calculate density
-            df['B01003_001E'] = pd.to_numeric(df['B01003_001E'], errors='coerce')  # Population
-            df['ALAND'] = pd.to_numeric(df['ALAND'], errors='coerce')              # Land area (m²)
-            df['density_km2'] = df['B01003_001E'] / (df['ALAND'] / 1_000_000)
+        top_25 = df.sort_values(by='density_km2', ascending=False).head(25)
 
-            # Optional: Trim to 25 entries
-            top_25 = df.sort_values(by='density_km2', ascending=False).head(25)
+        conn = sqlite3.connect("ann_arbor_density.db")
+        top_25.to_sql("tract_density", conn, if_exists="replace", index=False)
 
-            # Step 5: Save to SQLite database
-            conn = sqlite3.connect("ann_arbor_density.db")  # Creates the DB file locally
-            top_25.to_sql("tract_density", conn, if_exists="replace", index=False)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        print("Tables in DB:", cursor.fetchall())
 
-            # Optional: Confirm it worked
-            cursor = conn.cursor()
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-            print("Tables in DB:", cursor.fetchall())
+        df_check = pd.read_sql("SELECT * FROM tract_density", conn)
+        print(df_check.head())
 
-            df_check = pd.read_sql("SELECT * FROM tract_density", conn)
-            print(df_check.head())
-
-            conn.close()
-        else:
-            print("No data returned from the API.")
-    except Exception as e:
-        print("Error parsing JSON:", e)
-else:
-    print(f"Request failed with status code {response.status_code}")
+        conn.close()
+    except:
+        print("Error parsing JSON")
 
 
