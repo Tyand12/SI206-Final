@@ -5,19 +5,25 @@ import requests
 import sqlite3
 import time
 
-#Jolie
-
 API_KEY = 'meIGG1cfYGouCKivoLbDcUcmvardMj6p'
-DB_NAME = 'weather_density.db'
+DB_NAME = 'weather_density2.db'
 
 CITIES = [
-    'Bozeman, Montana', 'Pullman, Washington', 'Gainesville, Florida', 'Boone, North Carolina',
-    'Clemson, South Carolina', 'East Lansing, Michigan', 'Moscow, Idaho', 'Provo, Utah',
-    'Ann Arbor, Michigan', 'Stanford, California', 'Bloomington, Indiana', 'Athens, Ohio',
-    'Ellensburg, Washington', 'San Luis Obispo, California', 'College Station, Texas',
-    'Laramie, Wyoming', 'Amherst, Massachusetts', 'Manhattan, Kansas',
-    'West Lafayette, Indiana', 'Platteville, Wisconsin'
+    'Bozeman, MT', 'Pullman, WA', 'Gainesville, FL', 'Boone, NC',
+    'Clemson, SC', 'East Lansing, MI', 'Moscow, ID', 'Provo, UT',
+    'Ann Arbor, MI', 'Stanford, CA', 'Bloomington, IN', 'Athens, OH',
+    'Ellensburg, WA', 'San Luis Obispo, CA', 'College Station, TX',
+    'Laramie, WY', 'Amherst, MA', 'Manhattan, KS',
+    'West Lafayette, IN', 'Platteville, WI'
 ]
+
+def reset_weather_data():
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute('DELETE FROM Weather')
+    conn.commit()
+    conn.close()
+    print("Database has been reset.")
 
 # Create table if it doesn't already exist
 def create_weather_table():
@@ -66,7 +72,11 @@ def fetch_weather_data(location_key):
         print("Error fetching weather data.")
         return None
 
-# Store up to 20 new records, total limit 100
+# Convert Celsius to Fahrenheit
+def celsius_to_fahrenheit(celsius):
+    return (celsius * 9/5) + 32
+
+# Store up to max_new new records, total limit total_limit
 def store_weather_data(max_new=20, total_limit=100):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -89,24 +99,35 @@ def store_weather_data(max_new=20, total_limit=100):
         if not location_key:
             continue
 
+        # Check if data for this city and observation time already exists
+        cur.execute('''
+            SELECT 1 FROM Weather WHERE city = ? AND observation_time = ?
+        ''', (city, location_key))
+        if cur.fetchone():
+            print(f"Data for {city} already exists.")
+            continue
+
         weather = fetch_weather_data(location_key)
         if weather:
             try:
+                temperature_fahrenheit = celsius_to_fahrenheit(weather['temperature'])
+
                 cur.execute('''
                     INSERT OR IGNORE INTO Weather 
                     (city, location_key, observation_time, temperature, weather_text, is_daytime)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (
-                    city, location_key, weather['observation_time'], weather['temperature'],
+                    city, location_key, weather['observation_time'], temperature_fahrenheit,
                     weather['weather_text'], weather['is_daytime']
                 ))
-                conn.commit()
                 rows_added += 1
                 print(f"✅ Added: {city} | Total: {current_count + rows_added}")
-                time.sleep(1)  # avoid rate limits
+                time.sleep(1)  # Avoid rate limits
             except Exception as e:
                 print(f"❌ Insert failed for {city}: {e}")
 
+    # Commit all changes at once for efficiency
+    conn.commit()
     conn.close()
 
 if __name__ == '__main__':
