@@ -2,8 +2,7 @@ import requests
 import sqlite3
 
 api_key = "a422cf66857dbe08ca51d9e5874ab31ed39fce06"
-acs_base_url = 'https://api.census.gov/data/2021/acs/acs5'
-# tiger_url = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/0/query"
+
 # geo_base_url = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress'
 cities = {
     'Bozeman': ('08950', '30', 'MT'),
@@ -43,6 +42,7 @@ def setup_database(db_name="city_data.db"):
     return conn, cursor
 
 def get_city_population(place_code, state_code):
+    acs_base_url = 'https://api.census.gov/data/2021/acs/acs5'
     params = {
         'get': 'B01003_001E,NAME',
         'for': f'place:{place_code}',
@@ -58,6 +58,41 @@ def get_city_population(place_code, state_code):
     else:
         print(f"ACS Error {response.status_code}: {response.text}")
         return None
+    
+# def get_tiger_location(place_code, state_code):    
+#     tiger_url = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Places_CouSub_ConCity_SubMCD/MapServer/0/query"
+#     params = {
+#         "where": f"STATEFP='{state_code}' AND PLACEFP='{place_code}'",
+#         "outFields": "NAME,STATEFP,PLACEFP",
+#         "returnGeometry": "true",
+#         "f": "json"
+#     }
+#     response = requests.get(tiger_url, params=params)
+#     print(response.url)
+#     if response.status_code == 200:
+#         data = response.json()
+#         try:
+#             geometry = data['features'][0]['geometry']
+#             lon = geometry['x']
+#             lat = geometry['y']
+#             return (lat, lon)
+#         except:
+#             return (None, None)
+#     else:
+#         return (None, None)
+
+# def populate_database(cities, conn, cursor):
+#     for city_name, (place_code, state_code, state_abbrev) in cities.items():
+#         population = get_city_population(place_code, state_code)
+#         lat, lon = get_tiger_location(place_code, state_code)
+
+#         if population is not None and lat is not None and lon is not None:
+#             city_name = f"{city_name}, {state_abbrev}"
+#             cursor.execute('''
+#                 INSERT OR REPLACE INTO city_stats (city, population, latitude, longitude, place_code, state_code)
+#                 VALUES (?, ?, ?, ?, ?, ?)
+#             ''', (city_name, population, lat, lon, place_code, state_code))
+#     conn.commit()
 
 def populate_database(cities, conn, cursor):
     for city_name, (place_code, state_code, state_abbrev) in cities.items():
@@ -69,6 +104,7 @@ def populate_database(cities, conn, cursor):
                 VALUES (?, ?, ?, ?)
             ''', (full_city_name, population, place_code, state_code))
     conn.commit()
+
 
 def main():
     conn, cursor = setup_database()
