@@ -5,7 +5,6 @@ import sqlite3
 api_key = "a422cf66857dbe08ca51d9e5874ab31ed39fce06"
 acs_base_url = 'https://api.census.gov/data/2021/acs/acs5'
 
-# Parameters for the API request
 params = {
     'get': 'B01003_001E,NAME',
     'for': 'tract:*',
@@ -13,35 +12,58 @@ params = {
     'key': api_key
 }
 
-# Make the API request
-response = requests.get(acs_base_url, params=params)
-print(response.url)
+acs_response = requests.get(acs_base_url, params=params)
+print(acs_response.url)
 
-if response.status_code == 200:
-    print(response.text)
+if acs_response.status_code == 200:
+    print(acs_response.text)
 
-    try:
-        data = response.json()
-        df = pd.DataFrame(data[1:], columns=data[0])
+    acs_data = acs_response.json()
+    acs_df = pd.DataFrame(acs_data[1:], columns=acs_data[0])
+    print(acs_df)
 
-        df['B01003_001E'] = pd.to_numeric(df['B01003_001E'], errors='coerce')
-        df['ALAND'] = pd.to_numeric(df['ALAND'], errors='coerce')
-        df['density_km2'] = df['B01003_001E'] / (df['ALAND'] / 1_000_000)
+tiger_url = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer/6/query"
 
-        top_25 = df.sort_values(by='density_km2', ascending=False).head(25)
+tiger_params = {
+    "where": 'STATE="26" AND COUNTY="161"',
+    "outFields": "STATE,COUNTY,TRACT,CENTLAT,CENTLON",
+    "f": "json"
+}
 
-        conn = sqlite3.connect("ann_arbor_density.db")
-        top_25.to_sql("tract_density", conn, if_exists="replace", index=False)
-
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        print("Tables in DB:", cursor.fetchall())
-
-        df_check = pd.read_sql("SELECT * FROM tract_density", conn)
-        print(df_check.head())
-
-        conn.close()
-    except:
-        print("Error parsing JSON")
+tiger_response = requests.get(tiger_url, params=tiger_params)
+print(tiger_response.url)
+print(tiger_response.text)
+tiger_data = tiger_response.json()
+tiger_records = [f["attributes"] for f in tiger_data["features"]]
+tiger_df = pd.DataFrame(tiger_records)
 
 
+acs_df["state"] = acs_df["state"].astype(str)
+acs_df["county"] = acs_df["county"].astype(str)
+acs_df["tract"] = acs_df["tract"].astype(str)
+
+tiger_df["STATE"] = tiger_df["STATE"].astype(str)
+tiger_df["COUNTY"] = tiger_df["COUNTY"].astype(str)
+tiger_df["TRACT"] = tiger_df["TRACT"].astype(str)
+
+merged = pd.merge(
+    acs_df,
+    tiger_df,
+    how="inner",
+    left_on=["state", "county", "tract"],
+    right_on=["STATE", "COUNTY", "TRACT"]
+)
+
+merged.rename(columns={
+    "B01003_001E": "population",
+    "CENTLAT": "latitude",
+    "CENTLON": "longitude"
+}, inplace=True)
+
+final_df = merged[["NAME", "state", "county", "tract", "population", "latitude", "longitude"]]
+final_df["population"] = pd.to_numeric(final_df["population"], errors="coerce")
+
+conn = sqlite3.connect("ann_arbor_with_geo.db")
+final_df.to_sql("tract_data", conn, if_exists="replace", index=False)
+
+conn.close()
