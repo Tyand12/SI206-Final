@@ -121,10 +121,10 @@ def store_weather_data(max_new=20, total_limit=100):
                     weather['weather_text'], weather['is_daytime']
                 ))
                 rows_added += 1
-                print(f"✅ Added: {city} | Total: {current_count + rows_added}")
+                print(f"Added: {city} | Total: {current_count + rows_added}")
                 time.sleep(1)  # Avoid rate limits
             except Exception as e:
-                print(f"❌ Insert failed for {city}: {e}")
+                print(f"Insert failed for {city}: {e}")
 
     # Commit all changes at once for efficiency
     conn.commit()
