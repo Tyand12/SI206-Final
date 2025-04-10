@@ -1,69 +1,85 @@
 import requests
-import pandas as pd
 import sqlite3
 
 api_key = "a422cf66857dbe08ca51d9e5874ab31ed39fce06"
 acs_base_url = 'https://api.census.gov/data/2021/acs/acs5'
-
-params = {
-    'get': 'B01003_001E,NAME',
-    'for': 'tract:*',
-    'in': 'state:26+county:161',
-    'key': api_key
-}
-
-acs_response = requests.get(acs_base_url, params=params)
-print(acs_response.url)
-
-if acs_response.status_code == 200:
-    print(acs_response.text)
-
-    acs_data = acs_response.json()
-    acs_df = pd.DataFrame(acs_data[1:], columns=acs_data[0])
-    print(acs_df)
-
 tiger_url = "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tracts_Blocks/MapServer/6/query"
 
-tiger_params = {
-    "where": 'STATE="26" AND COUNTY="161"',
-    "outFields": "STATE,COUNTY,TRACT,CENTLAT,CENTLON",
-    "f": "json"
+
+cities = {
+    'Bozeman': ('08950', '30'),
+    'Pullman': ('56625', '53'),
+    'Gainesville': ('25175', '12'),
+    'Boone': ('07080', '37'),
+    'Clemson': ('14950', '45'),
+    'East Lansing': ('24120', '26'),
+    'Moscow': ('54550', '16'),
+    'Provo': ('62470', '49'),
+    'Ann Arbor': ('03000', '26'),
+    'Stanford': ('73906', '06'),
+    'Bloomington': ('05860', '18'),
+    'Athens': ('02736', '39'),
+    'Ellensburg': ('21240', '53'),
+    'San Luis Obispo': ('68154', '06'),
+    'College Station': ('15976', '48'),
+    'Laramie': ('45050', '56'),
+    'Amherst': ('01370', '25'),
+    'Manhattan': ('44250', '20'),
+    'West Lafayette': ('82862', '18'),
+    'Platteville': ('63250', '55')
 }
 
-tiger_response = requests.get(tiger_url, params=tiger_params)
-print(tiger_response.url)
-print(tiger_response.text)
-tiger_data = tiger_response.json()
-tiger_records = [f["attributes"] for f in tiger_data["features"]]
-tiger_df = pd.DataFrame(tiger_records)
+conn = sqlite3.connect("city_data.db")
+cursor = conn.cursor()
+
+# Create table for city statistics
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS city_stats (
+        city TEXT,
+        name_from_api TEXT,
+        population INTEGER,
+        latitude REAL,
+        longitude REAL,
+        place_code TEXT,
+        state_code TEXT
+    )
+''')
+
+for city_name, (place_code, state_code) in cities.items():
+    params = {
+        'get': 'B01003_001E,NAME',
+        'for': f'place:{place_code}',
+        'in': f'state:{state_code}',
+        'key': api_key
+    }
+    response = requests.get(acs_base_url, params=params)
+    print(response.url)
+    if response.status_code == 200:
+        acs_json = response.json()
+        population = acs_json[1][0]
+        name = acs_json[1][1]
+    else:
+        print(f"Status: {response.status_code}")
+        print(response.text)
+
+    tiger_params = {
+        "where": f'STATE={state_code} AND PLACE={place_code}',
+        "outFields": "STATE,COUNTY,TRACT,CENTLAT,CENTLON",
+        "f": "json"
+    }
+    tiger_response = requests.get(tiger_url, params=tiger_params)
+    print(tiger_response.url)
+    if tiger_response.status_code == 200:
+        tiger_json = tiger_response.json()
+        feature = tiger_json["features"][0]["attributes"]
+        lat = feature.get("CENTLAT")
+        lon = feature.get("CENTLON")
+    else:
+        print(f"Status: {tiger_response.status_code}")
+        print(tiger_response.text)
+    cursor.execute('''
+        INSERT INTO city_stats (city, name_from_api, population, latitude, longitude, place_code, state_code)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (city_name, name, population, lat, lon, place_code, state_code))
 
 
-acs_df["state"] = acs_df["state"].astype(str)
-acs_df["county"] = acs_df["county"].astype(str)
-acs_df["tract"] = acs_df["tract"].astype(str)
-
-tiger_df["STATE"] = tiger_df["STATE"].astype(str)
-tiger_df["COUNTY"] = tiger_df["COUNTY"].astype(str)
-tiger_df["TRACT"] = tiger_df["TRACT"].astype(str)
-
-merged = pd.merge(
-    acs_df,
-    tiger_df,
-    how="inner",
-    left_on=["state", "county", "tract"],
-    right_on=["STATE", "COUNTY", "TRACT"]
-)
-
-merged.rename(columns={
-    "B01003_001E": "population",
-    "CENTLAT": "latitude",
-    "CENTLON": "longitude"
-}, inplace=True)
-
-final_df = merged[["NAME", "state", "county", "tract", "population", "latitude", "longitude"]]
-final_df["population"] = pd.to_numeric(final_df["population"], errors="coerce")
-
-conn = sqlite3.connect("ann_arbor_with_geo.db")
-final_df.to_sql("tract_data", conn, if_exists="replace", index=False)
-
-conn.close()
