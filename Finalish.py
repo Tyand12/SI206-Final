@@ -67,7 +67,7 @@ for city, lat, lon in city_points:
             roadClosure = int(flow.get("roadClosure", False))
 
             cursor.execute("""
-                INSERT INTO traffic (
+                INSERT OR REPLACE INTO traffic (
                     city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure
                 ) VALUES (?, ?, ?, ?, ?, ?)
             """, (city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure))
