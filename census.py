@@ -3,7 +3,6 @@ import sqlite3
 
 api_key = "a422cf66857dbe08ca51d9e5874ab31ed39fce06"
 
-# geo_base_url = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress'
 cities = {
     'Bozeman': ('08950', '30', 'MT'),
     'Pullman': ('56625', '53', 'WA'),
@@ -98,11 +97,11 @@ def populate_database(cities, conn, cursor):
     for city_name, (place_code, state_code, state_abbrev) in cities.items():
         population = get_city_population(place_code, state_code)
         if population is not None:
-            full_city_name = f"{city_name}, {state_abbrev}"
+            city_name = f"{city_name}, {state_abbrev}"
             cursor.execute('''
-                INSERT INTO city_stats (city, population, place_code, state_code)
+                INSERT OR REPLACE INTO city_stats (city, population, place_code, state_code)
                 VALUES (?, ?, ?, ?)
-            ''', (full_city_name, population, place_code, state_code))
+            ''', (city_name, population, place_code, state_code))
     conn.commit()
 
 
