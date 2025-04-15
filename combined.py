@@ -11,29 +11,16 @@ def create_combined_db():
     cur = conn.cursor()
 
     cur.execute('''
-        CREATE TABLE IF NOT EXISTS traffic (
+        CREATE TABLE IF NOT EXISTS combined (
             city TEXT PRIMARY KEY,
             frc TEXT,
             currentSpeed INTEGER,
             freeFlowSpeed INTEGER,
             confidence REAL,
-            roadClosure BOOLEAN
-        )
-    ''')
-
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS census (
-            city TEXT PRIMARY KEY,
+            roadClosure BOOLEAN,
             population INTEGER,
             place_code TEXT,
-            state_code TEXT
-        )
-    ''')
-
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS weather (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            city TEXT,
+            state_code TEXT,
             location_key TEXT,
             observation_time TEXT,
             temperature REAL,
@@ -45,42 +32,89 @@ def create_combined_db():
     conn.commit()
     conn.close()
 
-def copy_data():
-    conn_combined = sqlite3.connect(combined_db)
-    cur_combined = conn_combined.cursor()
+def copy_and_merge_data():
+    data = {}
 
+    # Load traffic data
     if os.path.exists(traffic_db):
         conn = sqlite3.connect(traffic_db)
         cur = conn.cursor()
         for row in cur.execute("SELECT city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure FROM traffic"):
-            cur_combined.execute('''
-                INSERT OR REPLACE INTO traffic VALUES (?, ?, ?, ?, ?, ?)
-            ''', row)
+            city = row[0]
+            data[city] = {
+                'frc': row[1], 'currentSpeed': row[2], 'freeFlowSpeed': row[3],
+                'confidence': row[4], 'roadClosure': row[5]
+            }
         conn.close()
 
+    # Load census data
     if os.path.exists(census_db):
         conn = sqlite3.connect(census_db)
         cur = conn.cursor()
         for row in cur.execute("SELECT city, population, place_code, state_code FROM city_stats"):
-            cur_combined.execute('''
-                INSERT OR REPLACE INTO census VALUES (?, ?, ?, ?)
-            ''', row)
+            city = row[0]
+            if city not in data:
+                data[city] = {}
+            data[city].update({
+                'population': row[1], 'place_code': row[2], 'state_code': row[3]
+            })
         conn.close()
 
+    # Load weather data (use the latest observation per city)
     if os.path.exists(weather_db):
         conn = sqlite3.connect(weather_db)
         cur = conn.cursor()
-        for row in cur.execute("SELECT city, location_key, observation_time, temperature, weather_text, is_daytime FROM Weather"):
-            cur_combined.execute('''
-                INSERT INTO weather (city, location_key, observation_time, temperature, weather_text, is_daytime)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', row)
+        for row in cur.execute("""
+            SELECT city, location_key, observation_time, temperature, weather_text, is_daytime
+            FROM Weather
+            WHERE observation_time IN (
+                SELECT MAX(observation_time)
+                FROM Weather AS w2
+                WHERE w2.city = Weather.city
+            )
+        """):
+            city = row[0]
+            if city not in data:
+                data[city] = {}
+            data[city].update({
+                'location_key': row[1], 'observation_time': row[2], 'temperature': row[3],
+                'weather_text': row[4], 'is_daytime': row[5]
+            })
         conn.close()
+
+    # Insert merged data into combined DB
+    conn_combined = sqlite3.connect(combined_db)
+    cur_combined = conn_combined.cursor()
+
+    for city, info in data.items():
+        cur_combined.execute('''
+            INSERT OR REPLACE INTO combined (
+                city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure,
+                population, place_code, state_code,
+                location_key, observation_time, temperature, weather_text, is_daytime
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            city,
+            info.get('frc'),
+            info.get('currentSpeed'),
+            info.get('freeFlowSpeed'),
+            info.get('confidence'),
+            info.get('roadClosure'),
+            info.get('population'),
+            info.get('place_code'),
+            info.get('state_code'),
+            info.get('location_key'),
+            info.get('observation_time'),
+            info.get('temperature'),
+            info.get('weather_text'),
+            info.get('is_daytime')
+        ))
 
     conn_combined.commit()
     conn_combined.close()
 
 if __name__ == "__main__":
     create_combined_db()
-    copy_data()
+    copy_and_merge_data()
+
 
