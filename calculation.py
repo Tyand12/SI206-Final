@@ -1,33 +1,30 @@
 import sqlite3
-import pandas as pd
 
-db_path = 'combined_data.db' 
-conn = sqlite3.connect(db_path)
+def compute_ratios_and_write_to_file(db_path="combined_data.db", output_file="calculations.txt"):
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
 
-traffic_df = pd.read_sql_query("SELECT * FROM traffic", conn)
-census_df = pd.read_sql_query("SELECT * FROM census", conn)
-weather_df = pd.read_sql_query("SELECT * FROM weather", conn)
+    query = """
+    SELECT city, currentSpeed, freeFlowSpeed, temperature
+    FROM combined
+    WHERE currentSpeed IS NOT NULL AND freeFlowSpeed IS NOT NULL AND temperature IS NOT NULL
+    """
+    rows = cur.execute(query).fetchall()
+    conn.close()
 
-traffic_df['city'] = traffic_df['city'].str.strip()
-census_df['city'] = census_df['city'].str.strip()
-weather_df['city'] = weather_df['city'].str.strip()
+    results = []
+    for row in rows:
+        city, current_speed, free_flow_speed, temperature = row
+        if free_flow_speed != 0 and temperature != 0:
+            speed_ratio = current_speed / free_flow_speed
+            temp_adjusted_ratio = (free_flow_speed - current_speed) / temperature
+            results.append(f"{city}: speed_ratio = {speed_ratio:.3f}, adjusted_temp_ratio = {temp_adjusted_ratio:.3f}")
 
-traffic_df['road_segment'] = 1
-road_miles_df = traffic_df.groupby('city')['road_segment'].count().reset_index(name='total_road_miles')
+    with open(output_file, "w") as f:
+        f.write("\n".join(results))
 
-avg_speed_df = traffic_df.groupby('city').agg({
-    'currentSpeed': 'mean',
-    'freeFlowSpeed': 'mean'
-}).reset_index()
 
-merged_df = avg_speed_df.merge(road_miles_df, on='city')
-merged_df = merged_df.merge(census_df[['city', 'population']], on='city')
-merged_df = merged_df.merge(weather_df[['city', 'temperature']], on='city')
+if __name__ == "__main__":
+    compute_ratios_and_write_to_file()
 
-merged_df['expr1'] = ((merged_df['freeFlowSpeed'] - merged_df['currentSpeed']) * merged_df['total_road_miles']) / merged_df['population']
-merged_df['expr2'] = (merged_df['freeFlowSpeed'] - merged_df['currentSpeed']) / merged_df['temperature']
 
-output_df = merged_df[['city', 'expr1', 'expr2']]
-output_df.to_csv('city_metrics.txt', index=False, sep='\t')
-
-conn.close()

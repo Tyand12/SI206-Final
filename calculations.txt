@@ -1,0 +1,20 @@
+Bozeman, MT: speed_ratio = 0.684, adjusted_temp_ratio = 0.167
+Pullman, WA: speed_ratio = 0.759, adjusted_temp_ratio = 0.163
+Gainesville, FL: speed_ratio = 1.000, adjusted_temp_ratio = 0.000
+Boone, NC: speed_ratio = 0.771, adjusted_temp_ratio = 0.176
+Clemson, SC: speed_ratio = 1.000, adjusted_temp_ratio = 0.000
+East Lansing, MI: speed_ratio = 1.000, adjusted_temp_ratio = 0.000
+Moscow, ID: speed_ratio = 0.708, adjusted_temp_ratio = 0.166
+Provo, UT: speed_ratio = 0.760, adjusted_temp_ratio = 0.131
+Ann Arbor, MI: speed_ratio = 0.864, adjusted_temp_ratio = 0.069
+Stanford, CA: speed_ratio = 1.000, adjusted_temp_ratio = 0.000
+Bloomington, IN: speed_ratio = 0.792, adjusted_temp_ratio = 0.110
+Athens, OH: speed_ratio = 1.000, adjusted_temp_ratio = 0.000
+Ellensburg, WA: speed_ratio = 1.000, adjusted_temp_ratio = 0.000
+San Luis Obispo, CA: speed_ratio = 0.750, adjusted_temp_ratio = 0.094
+College Station, TX: speed_ratio = 0.812, adjusted_temp_ratio = 0.087
+Laramie, WY: speed_ratio = 1.000, adjusted_temp_ratio = 0.000
+Amherst, MA: speed_ratio = 1.000, adjusted_temp_ratio = 0.000
+Manhattan, KS: speed_ratio = 1.000, adjusted_temp_ratio = 0.000
+West Lafayette, IN: speed_ratio = 0.762, adjusted_temp_ratio = 0.109
+Platteville, WI: speed_ratio = 1.000, adjusted_temp_ratio = 0.000

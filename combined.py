@@ -35,7 +35,6 @@ def create_combined_db():
 def copy_and_merge_data():
     data = {}
 
-    # Load traffic data
     if os.path.exists(traffic_db):
         conn = sqlite3.connect(traffic_db)
         cur = conn.cursor()
@@ -47,7 +46,6 @@ def copy_and_merge_data():
             }
         conn.close()
 
-    # Load census data
     if os.path.exists(census_db):
         conn = sqlite3.connect(census_db)
         cur = conn.cursor()
@@ -60,7 +58,6 @@ def copy_and_merge_data():
             })
         conn.close()
 
-    # Load weather data (use the latest observation per city)
     if os.path.exists(weather_db):
         conn = sqlite3.connect(weather_db)
         cur = conn.cursor()
@@ -82,7 +79,6 @@ def copy_and_merge_data():
             })
         conn.close()
 
-    # Insert merged data into combined DB
     conn_combined = sqlite3.connect(combined_db)
     cur_combined = conn_combined.cursor()
 
@@ -116,5 +112,52 @@ def copy_and_merge_data():
 if __name__ == "__main__":
     create_combined_db()
     copy_and_merge_data()
+
+
+
+import sqlite3
+import pandas as pd
+
+DB_PATH = "combined_data.db"
+
+CATEGORICAL_COLUMNS = ['frc', 'weather_text']
+
+
+def encode_strings(df, columns):
+    """
+    Replace strings in specified columns with integer codes.
+    Returns encoded DataFrame and mapping dictionaries.
+    """
+    mappings = {}
+    for col in columns:
+        df[col + '_id'], mapping = pd.factorize(df[col])
+        mappings[col] = dict(enumerate(mapping))
+    df = df.drop(columns=columns)
+    return df, mappings
+
+
+def load_encoded_data():
+    """
+    Load the combined table from the database and return an encoded version.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query("SELECT * FROM combined", conn)
+    df_encoded, mappings = encode_strings(df, CATEGORICAL_COLUMNS)
+
+    df_encoded.to_sql('combined_encoded', conn, if_exists='replace', index=False)
+
+    conn.close()
+    return df_encoded, mappings
+
+
+if __name__ == "__main__":
+    encoded_df, column_mappings = load_encoded_data()
+
+    print("Sample of Encoded Data:")
+    print(encoded_df.head())
+
+    print("\nMappings:")
+    for col, mapping in column_mappings.items():
+        print(f"{col}: {mapping}")
 
 

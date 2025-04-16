@@ -7,7 +7,7 @@ UNIT = "MPH"
 OPENLR = "false"
 
 city_points = [
-    ("Bozeman, MT", "45.6795", "-111.0440"),
+        ("Bozeman, MT", "45.6795", "-111.0440"),
     ("Pullman, WA", "46.7314", "-117.1787"),
     ("Gainesville, FL", "29.6516", "-82.3248"),
     ("Boone, NC", "36.2168", "-81.6746"),
@@ -33,22 +33,28 @@ headers = {
     "accept": "*/*"
 }
 
-conn = sqlite3.connect("traffic_data.db")
-cursor = conn.cursor()
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS traffic (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        city TEXT,
-        frc TEXT,
-        currentSpeed INTEGER,
-        freeFlowSpeed INTEGER,
-        confidence REAL,
-        roadClosure BOOLEAN
-    )
-""")
 
-for city, lat, lon in city_points:
-    print(f"Fetching traffic data for {city}...")
+def create_database():
+    """Create SQLite database and traffic table if it doesn't exist."""
+    conn = sqlite3.connect("traffic_data.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS traffic (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            city TEXT,
+            frc TEXT,
+            currentSpeed INTEGER,
+            freeFlowSpeed INTEGER,
+            confidence REAL,
+            roadClosure BOOLEAN
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def fetch_traffic_data(lat, lon):
+    """Fetch traffic data from TomTom API for given latitude and longitude."""
     params = {
         "point": f"{lat},{lon}",
         "unit": UNIT,
@@ -60,27 +66,57 @@ for city, lat, lon in city_points:
     if response.status_code == 200:
         try:
             flow = response.json().get("flowSegmentData", {})
-            frc = flow.get("frc")
-            currentSpeed = flow.get("currentSpeed")
-            freeFlowSpeed = flow.get("freeFlowSpeed")
-            confidence = flow.get("confidence")
-            roadClosure = int(flow.get("roadClosure", False))
-
-            cursor.execute("""
-                INSERT OR REPLACE INTO traffic (
-                    city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure
-                ) VALUES (?, ?, ?, ?, ?, ?)
-            """, (city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure))
-
-            print(f"Data inserted for {city}")
+            return {
+                "frc": flow.get("frc"),
+                "currentSpeed": flow.get("currentSpeed"),
+                "freeFlowSpeed": flow.get("freeFlowSpeed"),
+                "confidence": flow.get("confidence"),
+                "roadClosure": int(flow.get("roadClosure", False))
+            }
         except Exception as e:
-            print(f"Failed to parse/insert data for {city}: {e}")
+            print(f"Failed to parse traffic data: {e}")
+            return None
     else:
-        print(f"Request failed for {city} with status {response.status_code}")
+        print(f"Request failed with status {response.status_code}")
+        return None
 
-conn.commit()
-conn.close()
-print("Traffic data has been saved to 'traffic_data.db'.")
+
+def insert_traffic_data(city, data):
+    """Insert traffic data for a city into the database."""
+    if data is None:
+        print(f"No data to insert for {city}")
+        return
+
+    conn = sqlite3.connect("traffic_data.db")
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO traffic (
+                city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, (city, data["frc"], data["currentSpeed"], data["freeFlowSpeed"],
+              data["confidence"], data["roadClosure"]))
+        conn.commit()
+        print(f"Data inserted for {city}")
+        conn.close()
+    except:
+        print(f"Failed to insert data for {city}: {e}")
+        conn.close()
+
+
+def fetch_and_store_all_data():
+    """Fetch and store traffic data for all defined city points."""
+    for city, lat, lon in city_points:
+        print(f"Fetching traffic data for {city}...")
+        data = fetch_traffic_data(lat, lon)
+        insert_traffic_data(city, data)
+
+
+if __name__ == "__main__":
+    create_database()
+    fetch_and_store_all_data()
+    print("Traffic data has been saved to 'traffic_data.db'.")
+
 
 
 
