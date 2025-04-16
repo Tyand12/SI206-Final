@@ -161,3 +161,20 @@ if __name__ == "__main__":
         print(f"{col}: {mapping}")
 
 
+
+# frc
+
+# 0: FRC2
+# 1: FRC3
+# 2: FRC4
+# 3: FRC1
+# weather_text
+
+# 0: Mostly sunny
+# 1: Sunny
+# 2: Cloudy
+# 3: Light snow
+# 4: Mostly cloudy
+# 5: Partly sunny
+
+
