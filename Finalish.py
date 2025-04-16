@@ -73,18 +73,15 @@ def fetch_traffic_data(lat, lon):
                 "confidence": flow.get("confidence"),
                 "roadClosure": int(flow.get("roadClosure", False))
             }
-        except Exception as e:
-            print(f"Failed to parse traffic data: {e}")
+        except:
             return None
     else:
-        print(f"Request failed with status {response.status_code}")
         return None
 
 
 def insert_traffic_data(city, data):
     """Insert traffic data for a city into the database."""
     if data is None:
-        print(f"No data to insert for {city}")
         return
 
     conn = sqlite3.connect("traffic_data.db")
@@ -97,17 +94,14 @@ def insert_traffic_data(city, data):
         """, (city, data["frc"], data["currentSpeed"], data["freeFlowSpeed"],
               data["confidence"], data["roadClosure"]))
         conn.commit()
-        print(f"Data inserted for {city}")
         conn.close()
     except:
-        print(f"Failed to insert data for {city}: {e}")
         conn.close()
 
 
 def fetch_and_store_all_data():
     """Fetch and store traffic data for all defined city points."""
     for city, lat, lon in city_points:
-        print(f"Fetching traffic data for {city}...")
         data = fetch_traffic_data(lat, lon)
         insert_traffic_data(city, data)
 
@@ -115,7 +109,6 @@ def fetch_and_store_all_data():
 if __name__ == "__main__":
     create_database()
     fetch_and_store_all_data()
-    print("Traffic data has been saved to 'traffic_data.db'.")
 
 
 
