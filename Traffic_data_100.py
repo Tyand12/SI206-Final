@@ -116,7 +116,7 @@ headers = {
 
 def create_database():
     """Create SQLite database with two traffic tables."""
-    conn = sqlite3.connect("city_data.db")
+    conn = sqlite3.connect("combined_data.db")
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -176,7 +176,7 @@ def insert_traffic_data(city, data, table_name):
     if data is None:
         return
 
-    conn = sqlite3.connect("city_data.db")
+    conn = sqlite3.connect("combined_data.db")
     cursor = conn.cursor()
     try:
         cursor.execute(f"""
