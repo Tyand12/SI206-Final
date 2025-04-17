@@ -108,7 +108,7 @@ cities = {
 }
     
 
-def setup_database(db_name="city_data.db"):
+def setup_database(db_name="combined_data.db"):
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
     cursor.execute('''
