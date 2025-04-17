@@ -108,21 +108,19 @@ city_points = [
 ("Hammond, LA", "30.5044", "-90.4626"),
 ("Milledgeville, GA", "33.0801", "-83.2321"),
 ("Valdosta, GA", "30.8333", "-83.2785")
- 
-
 ]
 
 headers = {
     "accept": "*/*"
 }
 
-
 def create_database():
-    """Create SQLite database and traffic table if it doesn't exist."""
-    conn = sqlite3.connect("traffic_data_100.db")
+    """Create SQLite database with two traffic tables."""
+    conn = sqlite3.connect("traffic_data.db")
     cursor = conn.cursor()
+
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS traffic (
+        CREATE TABLE IF NOT EXISTS traffic_all (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             city TEXT,
             frc TEXT,
@@ -132,9 +130,21 @@ def create_database():
             roadClosure BOOLEAN
         )
     """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS traffic_sample (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            city TEXT,
+            frc TEXT,
+            currentSpeed INTEGER,
+            freeFlowSpeed INTEGER,
+            confidence REAL,
+            roadClosure BOOLEAN
+        )
+    """)
+
     conn.commit()
     conn.close()
-
 
 def fetch_traffic_data(lat, lon):
     """Fetch traffic data from TomTom API for given latitude and longitude."""
@@ -161,17 +171,16 @@ def fetch_traffic_data(lat, lon):
     else:
         return None
 
-
-def insert_traffic_data(city, data):
-    """Insert traffic data for a city into the database."""
+def insert_traffic_data(city, data, table_name):
+    """Insert traffic data into specified table."""
     if data is None:
         return
 
-    conn = sqlite3.connect("traffic_data_100.db")
+    conn = sqlite3.connect("traffic_data.db")
     cursor = conn.cursor()
     try:
-        cursor.execute("""
-            INSERT OR REPLACE INTO traffic (
+        cursor.execute(f"""
+            INSERT OR REPLACE INTO {table_name} (
                 city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure
             ) VALUES (?, ?, ?, ?, ?, ?)
         """, (city, data["frc"], data["currentSpeed"], data["freeFlowSpeed"],
@@ -181,13 +190,15 @@ def insert_traffic_data(city, data):
     except:
         conn.close()
 
-
 def fetch_and_store_all_data():
-    """Fetch and store traffic data for all defined city points."""
-    for city, lat, lon in city_points:
+    """Fetch and store traffic data for all cities in two tables."""
+    for idx, (city, lat, lon) in enumerate(city_points):
         data = fetch_traffic_data(lat, lon)
-        insert_traffic_data(city, data)
 
+        insert_traffic_data(city, data, "traffic_all")
+
+        if idx < 20:
+            insert_traffic_data(city, data, "traffic_sample")
 
 if __name__ == "__main__":
     create_database()
