@@ -38,7 +38,7 @@ def copy_and_merge_data():
     if os.path.exists(traffic_db):
         conn = sqlite3.connect(traffic_db)
         cur = conn.cursor()
-        for row in cur.execute("SELECT city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure FROM traffic"):
+        for row in cur.execute("SELECT city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure FROM traffic_sample"):
             city = row[0]
             data[city] = {
                 'frc': row[1], 'currentSpeed': row[2], 'freeFlowSpeed': row[3],
@@ -176,5 +176,6 @@ if __name__ == "__main__":
 # 3: Light snow
 # 4: Mostly cloudy
 # 5: Partly sunny
+
 
 
