@@ -119,6 +119,14 @@ def setup_database(db_name="city_data.db"):
             state_code TEXT
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS census_20 (
+            city TEXT,
+            population INTEGER,
+            place_code TEXT,
+            state_code TEXT
+        )
+    ''')
     return conn, cursor
 
 def get_city_population(place_code, state_code):
@@ -187,14 +195,6 @@ def populate_database(cities, conn, cursor):
 
 
 def create_limited_table(cities, conn, cursor, limit=20):
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS census_20 (
-            city TEXT,
-            population INTEGER,
-            place_code TEXT,
-            state_code TEXT
-        )
-    ''')
 
     limited_cities = dict(list(cities.items())[:limit])
 
