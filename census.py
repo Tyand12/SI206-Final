@@ -79,7 +79,7 @@ cities = {
     'Crawfordsville': ('15742', '18', 'IN'),
     'Delaware': ('21434', '39', 'OH'),
     'Granville': ('31402', '39', 'OH'),
-    'Lexington': ('45512', '51', 'VA'),
+    'Chicago': ('14000', '17', 'IL'),
     'Staunton': ('75216', '51', 'VA'),
     'Harrisonburg': ('35624', '51', 'VA'),
     'Fredericksburg': ('29744', '51', 'VA'),
