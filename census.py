@@ -183,6 +183,7 @@ def get_city_population(place_code, state_code):
 #     conn.commit()
 
 def populate_database(cities, conn, cursor):
+    cursor.execute('DELETE FROM census_100')
     for city_name, (place_code, state_code, state_abbrev) in cities.items():
         population = get_city_population(place_code, state_code)
         if population is not None:
@@ -195,9 +196,8 @@ def populate_database(cities, conn, cursor):
 
 
 def create_limited_table(cities, conn, cursor, limit=20):
-
+    cursor.execute('DELETE FROM census_20')
     limited_cities = dict(list(cities.items())[:limit])
-
     for city_name, (place_code, state_code, state_abbrev) in limited_cities.items():
         population = get_city_population(place_code, state_code)
         if population is not None:
