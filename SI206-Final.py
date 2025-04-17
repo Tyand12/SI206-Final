@@ -6,7 +6,7 @@ import sqlite3
 import time
 
 API_KEY = 'meIGG1cfYGouCKivoLbDcUcmvardMj6p'
-DB_NAME = 'weather_density.db'
+DB_NAME = 'city_data.db'
 
 CITIES = [
     'Bozeman, MT', 'Pullman, WA', 'Gainesville, FL', 'Boone, NC',
