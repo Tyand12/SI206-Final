@@ -27,4 +27,6 @@ def compute_ratios_and_write_to_file(db_path="combined_data.db", output_file="ca
 if __name__ == "__main__":
     compute_ratios_and_write_to_file()
 
+wivburpb
+
 
