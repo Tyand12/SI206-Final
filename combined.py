@@ -193,68 +193,48 @@ def create_combined_table():
     conn.close()
 
 def copy_and_merge_data():
-    data = {}
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
 
-    for row in cur.execute("SELECT city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure FROM traffic_sample"):
-        city = row[0]
-        data[city] = {
-            'frc': row[1], 'currentSpeed': row[2], 'freeFlowSpeed': row[3],
-            'confidence': row[4], 'roadClosure': row[5]
-        }
+    cur.execute('DELETE FROM combined')
 
-    for row in cur.execute("SELECT city, population, place_code, state_code FROM census_20"):
-        city = row[0]
-        if city not in data:
-            data[city] = {}
-        data[city].update({
-            'population': row[1], 'place_code': row[2], 'state_code': row[3]
-        })
-
-    for row in cur.execute("""
-        SELECT city, location_key, observation_time, temperature, weather_text, is_daytime
-        FROM Weather
-        WHERE observation_time IN (
-            SELECT MAX(observation_time)
-            FROM Weather AS w2
-            WHERE w2.city = Weather.city
+    cur.execute('''
+        INSERT INTO combined (
+            city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure,
+            population, place_code, state_code,
+            location_key, observation_time, temperature, weather_text, is_daytime
         )
-    """):
-        city = row[0]
-        if city not in data:
-            data[city] = {}
-        data[city].update({
-            'location_key': row[1], 'observation_time': row[2], 'temperature': row[3],
-            'weather_text': row[4], 'is_daytime': row[5]
-        })
-
-    for city, info in data.items():
-        cur.execute('''
-            INSERT OR REPLACE INTO combined (
-                city, frc, currentSpeed, freeFlowSpeed, confidence, roadClosure,
-                population, place_code, state_code,
-                location_key, observation_time, temperature, weather_text, is_daytime
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            city,
-            info.get('frc'),
-            info.get('currentSpeed'),
-            info.get('freeFlowSpeed'),
-            info.get('confidence'),
-            info.get('roadClosure'),
-            info.get('population'),
-            info.get('place_code'),
-            info.get('state_code'),
-            info.get('location_key'),
-            info.get('observation_time'),
-            info.get('temperature'),
-            info.get('weather_text'),
-            info.get('is_daytime')
-        ))
+        SELECT 
+            t.city,
+            t.frc,
+            t.currentSpeed,
+            t.freeFlowSpeed,
+            t.confidence,
+            t.roadClosure,
+            c.population,
+            c.place_code,
+            c.state_code,
+            w.location_key,
+            w.observation_time,
+            w.temperature,
+            w.weather_text,
+            w.is_daytime
+        FROM traffic_sample t
+        LEFT JOIN census c ON t.city = c.city
+        LEFT JOIN (
+            SELECT city, location_key, observation_time, temperature, weather_text, is_daytime
+            FROM Weather
+            WHERE (city, observation_time) IN (
+                SELECT city, MAX(observation_time)
+                FROM Weather
+                GROUP BY city
+            )
+        ) w ON t.city = w.city
+    ''')
 
     conn.commit()
     conn.close()
+
 
 
 CATEGORICAL_COLUMNS = ['frc', 'weather_text']
