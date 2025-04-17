@@ -112,7 +112,7 @@ def setup_database(db_name="city_data.db"):
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS city_stats (
+        CREATE TABLE IF NOT EXISTS census_100 (
             city TEXT,
             population INTEGER,
             place_code TEXT,
@@ -180,15 +180,41 @@ def populate_database(cities, conn, cursor):
         if population is not None:
             city_name = f"{city_name}, {state_abbrev}"
             cursor.execute('''
-                INSERT OR REPLACE INTO city_stats (city, population, place_code, state_code)
+                INSERT OR REPLACE INTO census_100 (city, population, place_code, state_code)
                 VALUES (?, ?, ?, ?)
             ''', (city_name, population, place_code, state_code))
+    conn.commit()
+
+
+def create_limited_table(cities, conn, cursor, limit=20):
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS census_20 (
+            city TEXT,
+            population INTEGER,
+            place_code TEXT,
+            state_code TEXT
+        )
+    ''')
+
+    limited_cities = dict(list(cities.items())[:limit])
+
+    for city_name, (place_code, state_code, state_abbrev) in limited_cities.items():
+        population = get_city_population(place_code, state_code)
+        if population is not None:
+            full_name = f"{city_name}, {state_abbrev}"
+            cursor.execute('''
+                INSERT OR REPLACE INTO census_20 (city, population, place_code, state_code)
+                VALUES (?, ?, ?, ?)
+            ''', (full_name, population, place_code, state_code))
+
     conn.commit()
 
 
 def main():
     conn, cursor = setup_database()
     populate_database(cities, conn, cursor)
+    create_limited_table(cities, conn, cursor)
     conn.close()
+
 
 main()
