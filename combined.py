@@ -220,7 +220,7 @@ def copy_and_merge_data():
             w.weather_text,
             w.is_daytime
         FROM traffic_sample t
-        LEFT JOIN census c ON t.city = c.city
+        LEFT JOIN census_20 c ON t.city = c.city
         LEFT JOIN (
             SELECT city, location_key, observation_time, temperature, weather_text, is_daytime
             FROM Weather
