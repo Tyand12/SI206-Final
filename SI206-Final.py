@@ -289,4 +289,5 @@ def store_weather_data(max_new=20, total_limit=100):
 
 if __name__ == '__main__':
     create_weather_table()
+    store_weather_data_100(100, 100)
     store_weather_data(20, 100)
