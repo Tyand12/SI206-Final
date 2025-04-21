@@ -5,7 +5,7 @@ import requests
 import sqlite3
 import time
 
-API_KEY = 'meIGG1cfYGouCKivoLbDcUcmvardMj6p'
+API_KEY = 'HdYK5LcdRVbHofrCvKfsXR4yErKnMBss'
 DB_NAME = 'combined_data.db'
 
 CITIES = [
