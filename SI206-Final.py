@@ -137,7 +137,7 @@ def create_weather_table():
         )
     ''')
     cur.execute('''
-        CREATE TABLE IF NOT EXISTS WeatherSample (
+        CREATE TABLE IF NOT EXISTS Weather100 (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             city TEXT, 
             location_key TEXT,
@@ -182,6 +182,55 @@ def fetch_weather_data(location_key):
 # Convert Celsius to Fahrenheit
 def celsius_to_fahrenheit(celsius):
     return (celsius * 9/5) + 32
+
+def store_weather_data_100(max_new=100, total_limit=100):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+
+    # Check current total row count
+    cur.execute('SELECT COUNT(*) FROM Weather100')
+    current_count = cur.fetchone()[0]
+
+    if current_count >= total_limit:
+        print("Limit of 100 rows already reached.")
+        conn.close()
+        return
+
+    rows_added = 0
+    for city in CITIES:
+        if rows_added >= max_new or current_count + rows_added >= total_limit:
+            break
+
+        location_key = get_location_key(city)
+        if not location_key:
+            continue
+
+        # Check if data for this city and observation time already exists
+        cur.execute('''
+            SELECT 1 FROM Weather100 WHERE city = ? AND observation_time = ?
+        ''', (city, location_key))
+        if cur.fetchone():
+            print(f"Data for {city} already exists.")
+            continue
+
+        weather = fetch_weather_data(location_key)
+        if weather:
+            try:
+                temperature_fahrenheit = celsius_to_fahrenheit(weather['temperature'])
+
+                cur.execute('''
+                    INSERT OR IGNORE INTO Weather100 
+                    (city, location_key, observation_time, temperature, weather_text, is_daytime)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (
+                    city, location_key, weather['observation_time'], temperature_fahrenheit,
+                    weather['weather_text'], weather['is_daytime']
+                ))
+                rows_added += 1
+                print(f"Added: {city} | Total: {current_count + rows_added}")
+                time.sleep(1)  # Avoid rate limits
+            except Exception as e:
+                print(f"Insert failed for {city}: {e}")
 
 # Store up to max_new new records, total limit total_limit
 def store_weather_data(max_new=20, total_limit=100):
@@ -232,6 +281,7 @@ def store_weather_data(max_new=20, total_limit=100):
                 time.sleep(1)  # Avoid rate limits
             except Exception as e:
                 print(f"Insert failed for {city}: {e}")
+
 
     # Commit all changes at once for efficiency
     conn.commit()
