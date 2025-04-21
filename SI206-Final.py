@@ -136,6 +136,18 @@ def create_weather_table():
             UNIQUE(city, observation_time)
         )
     ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS WeatherSample (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            city TEXT, 
+            location_key TEXT,
+            observation_time TEXT,
+            temperature REAL,
+            weather_text TEXT,
+            is_daytime INTEGER,
+            UNIQUE(city, observation_time)
+        )
+    ''')
     conn.commit()
     conn.close()
 
